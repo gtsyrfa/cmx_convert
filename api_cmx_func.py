@@ -13,6 +13,7 @@ def get_content_json(
                       username="admin",
                       password="Cisco!1",
                       rest_string="/api/location/v1/clients"):
+    """This function download json from cmx_server. It not universal function"""
     restURL="HTTPS://"+ipaddr+rest_string
     # print("DEBUG>>"+restURL)
     # Disable certificate checking
@@ -26,7 +27,8 @@ def get_content_json(
     return request.json()
 
 
-def get_apmac_set(cmx_content:dict):
+def get_apmac_set(cmx_content: dict):
+    """This function return unique mac addresses from ap's"""
     set_of_apmac = set()
     for i in range(len(cmx_content)):
         # We got set of ap's mac address
@@ -37,6 +39,7 @@ def get_apmac_set(cmx_content:dict):
 
 
 def cnv_time_pulse(tmp_time):
+    """This function convert time from ISO-8601 to Unix time"""
     # example of input time = "2019-07-03T12:48:26.150+0300" # it ISO 8601 format
     # example of output time = "1562158106"
     import datetime as dt 
@@ -47,17 +50,15 @@ def cnv_time_pulse(tmp_time):
 
 def wifi_pulse_out(cmx_json_content: dict):
     tmpfile = {}
-    # cmx_json_content = get_content_json()
     for json_unit in cmx_json_content:
-        # Здесь я переписываю значения из "некрасивых" путей родительского файла
-        # Выгруженного из CMX в человекочитаемый формат 
+        # make variables from dict readable
         apmac = json_unit['statistics']\
             ['maxDetectedRssi']['apMacAddress'].replace(':', '-')
         cl_mac = json_unit['macAddress'].replace(':', '-')
         cl_rssi = json_unit['statistics']['maxDetectedRssi']['rssi']
         cl_time = cnv_time_pulse(json_unit['statistics']['lastLocatedTime'])
-        #######################################################################
-        # Проверяем, что строка с apmac ещё пустая. Добавляем "шапку"
+        ########
+        # adding header if it none
         if apmac not in tmpfile:
             tmpfile.update(
                 {apmac: {
@@ -65,14 +66,14 @@ def wifi_pulse_out(cmx_json_content: dict):
                  "version": "1.0", "apmac": apmac,
                  "probe": []}}
             )
-        #######################################################################
-        # Добавляем значения в генерируемый файл.
+        ########
+        # adding new record to dict
         tmpfile[apmac]["probe"].append({
             "macAddress": cl_mac,
             "rssi": cl_rssi,
             "timestamp_1": cl_time
         })
-        #######################################################################
+        ########
     return tmpfile
 
 
@@ -103,16 +104,16 @@ if __name__ == "__main__":
     # If I haven't access to CMX server, I got content from file.
     # And I don't wont to make this logic :)
     # json_content = get_content_json()
-    with open("files/father.json", 'r') as file_json:
+    with open("father.json", 'r') as file_json:
         json_content = json.loads(file_json.read())
-    print("DEBUG>>", json_content[0])
     safe_macs = make_safe(json_content)
-    print("DEBUG>>", safe_macs[0])
-    print("DEBUG>>", json_content[0])
+
+    # Here I create a new dict that meets the requirements of the customer
     out_to_file = wifi_pulse_out(safe_macs)
+
     # I don't want any modification for father.json in test module
-    # with open("files/father.json", 'w') as file_json:
-    #    json.dump(safe_macs, file_json, indent=4)
+    with open("files/father.json", 'w') as file_json:
+        json.dump(safe_macs, file_json, indent=4)
 
     keys = out_to_file.keys()
     for key in keys:
